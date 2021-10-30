@@ -1,0 +1,189 @@
+---
+title: "Untitled"
+author: "Elio Campitelli"
+date: "02/08/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(data.table)
+d <- `[`
+library(manipulate)
+library(patchwork)
+
+
+scale_fill_divergent <- function (..., low = scales::muted("blue"), 
+                                  mid = "white", 
+                                  high = scales::muted("red"), 
+                                  midpoint = 0, space = "Lab",
+                                  na.value = "grey50", guide = "colourbar") {
+  ggplot2::scale_fill_gradient2(..., low = low, high = high, 
+                                mid = mid, midpoint = midpoint, space = space, na.value = na.value, 
+                                guide = guide)
+}
+```
+
+
+```{r}
+N <- 100
+data <- data.table(x = rnorm(N), 
+                   y = rnorm(N)) |> 
+  d(, clase := x+y > 0)
+
+arrow <- grid::arrow(type = "closed", 
+                     angle = 13, length = grid::unit(1, "lines"))
+
+data |> 
+  ggplot(aes(x, y)) +
+  geom_point(aes(color = clase)) +
+  coord_equal()
+```
+
+
+```{r}
+data |> 
+  ggplot(aes(x, y)) +
+  geom_point(aes(color = clase)) +
+  geom_abline(intercept = 0, slope = -1) +
+  coord_equal()
+```
+
+```{r}
+data |> 
+  ggplot(aes(x, y)) +
+  geom_point(aes(color = clase)) +
+  geom_abline(intercept = 0, slope = -1) +
+  annotate("segment", x = 0, y = 0, yend = 1, xend = 1, arrow = arrow) +
+  coord_equal()
+```
+
+```{r}
+manipulate(plot(x, 1), x = slider(1, 2))  # Porque rstudio 1.4 tiene un bug
+
+plotear <- function(x, y) {
+  data.table(dimension = c("x", "y"),
+             valor = c(x, y)) |> 
+    ggplot(aes(dimension, valor)) +
+    geom_col(aes(fill = valor), color = "black") +
+    scale_y_continuous(limits = c(-1, 1)) +
+    scale_fill_divergent(limits = c(-1, 1)) +
+    
+    data.table(x = x, 
+               y = y) |> 
+    ggplot(aes(0, 0)) +
+    geom_segment(aes(xend = x, yend = y), arrow = arrow) +
+    scale_y_continuous(limits = 1.2*c(-1, 1)) +
+    scale_x_continuous(limits = 1.2*c(-1, 1)) +
+    coord_equal()
+  
+}
+
+
+manipulate(plotear(x, y),
+           x = slider(-1, 1, initial = 1, step = 0.1), 
+           y = slider(-1, 1, initial = 1, step = 0.1)
+)
+```
+
+```{r}
+manipulate(plot(x, 1), x = slider(1, 2))  # Porque rstudio 1.4 tiene un bug
+plotear3d <- function(x, y, z) {
+  
+  data.table(dimension = c("x", "y", "z"),
+             valor = c(x, y, z)) |> 
+    ggplot(aes(dimension, valor)) +
+    geom_col(aes(fill = valor), color = "black") +
+    scale_y_continuous(limits = c(-1, 1)) +
+    scale_fill_divergent(limits = c(-1, 1)) +
+    
+    
+    data.table(x = c(0, x), 
+               y = c(0, y), 
+               z = c(0, z)) |> 
+    ggplot(aes(x, y)) +
+    ggforce::geom_link2(aes(colour = z^2, 
+                            size = (z+1)*3)) +
+    scale_colour_gradient(limits = c(0, 1),
+                          low = "gray60", 
+                          high = "#c6262e") +
+    scale_size_identity(guide = "none") +
+    coord_equal() +
+    scale_y_continuous(limits = 1.2*c(-1, 1)) +
+    scale_x_continuous(limits = 1.2*c(-1, 1)) 
+}
+manipulate(plotear3d(x, y, z),
+           x = slider(-1, 1, initial = .25, step = 0.1), 
+           y = slider(-1, 1, initial = -.25, step = 0.1),
+           z = slider(-1, 1, initial = 0, step = 0.1)
+)
+```
+
+
+```{r}
+n_dims <- 20
+
+data.table(dimension = paste0("dim ", seq_len(n_dims)),
+           valor = runif(n_dims, -1, 1)) |> 
+  ggplot(aes(dimension, valor)) +
+  geom_col(aes(fill = valor), color = "black") +
+  scale_y_continuous(limits = c(-1, 1)) +
+  scale_fill_divergent(limits = c(-1, 1)) 
+```
+
+
+
+```{r}
+grilla <- CJ(x = 1:2, 
+             y = 1:2) |> 
+  d(, valor := runif(.N, -1, 1)) 
+```
+
+
+```{r}
+grilla |> 
+  ggplot(aes(x, y)) +
+  geom_raster(aes(fill = valor)) +
+  scale_y_continuous(breaks = 1:2) +
+  scale_x_continuous(breaks = 1:2) +
+  scale_fill_divergent() +
+  coord_equal()
+```
+
+
+```{r}
+grilla |> 
+  d(, dimension := paste0("dimensión ", seq_len(.N))) |> 
+  ggplot(aes(x, y)) +
+  geom_raster(aes(fill = valor)) +
+  scale_y_continuous(breaks = 1:2) +
+  scale_x_continuous(breaks = 1:2) +
+  scale_fill_divergent() +
+  geom_label(aes(label = dimension)) +
+  coord_equal()
+```
+
+
+
+```{r}
+
+grilla |> 
+  ggplot(aes(x, y)) +
+  geom_raster(aes(fill = valor)) +
+  scale_y_continuous(breaks = 1:2) +
+  scale_x_continuous(breaks = 1:2) +
+  scale_fill_divergent(limits = c(-1, 1)) +
+  geom_label(aes(label = dimension)) + 
+  coord_equal() +
+  
+  grilla |> 
+  ggplot(aes(dimension, valor)) +
+  geom_col(aes(fill = valor), color = "black") +
+  scale_y_continuous(limits = c(-1, 1)) +
+  scale_fill_divergent(limits = c(-1, 1)) 
+```
+
+Siguiente paso: mostrar el mapa final de un perceptrón
