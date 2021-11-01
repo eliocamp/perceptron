@@ -187,3 +187,91 @@ grilla |>
 ```
 
 Siguiente paso: mostrar el mapa final de un perceptrón
+
+
+```{r}
+source("perceptron.R")
+source("preparar-datos.R")
+
+sst <- sst_datos()
+precip <- precip_datos()
+
+```
+
+
+```{r}
+sst <- sst %>%
+  na.omit() %>%
+  .[, .(t = mean(t)), by = .(lon, lat, time = metR::seasonally(time))] %>% 
+  .[, id := interaction(lon, lat)]  %>%
+  .[order(as.numeric(id))]
+
+
+# enso <- sst[lat %between% c(-5, 5) & lon %between% (360 + c(-170, -120))] %>% 
+#   na.omit() %>% 
+#   .[, mean(t), by = .(time)] %>% 
+#   .[, enso34 := scale(V1), by = .(month(time))] %>% 
+#   .[, clase := sign(enso34)]
+
+sst_matrix <- sst %>%
+  .[, t_anomaly := t - mean(t), by = .(lon, lat, metR::season(time))] %>% 
+  .[, t_anomaly := t_anomaly/sd(t_anomaly)] %>%
+  data.table::dcast(time ~ id, value.var = "t_anomaly") %>%
+  .[, -1] %>%
+  as.matrix()
+```
+
+
+```{r}
+precip <- precip %>% 
+  .[, .(precip = mean(precip)), by = .(time = metR::seasonally(time))] %>% 
+  .[, precip_anomalia := precip - mean(precip), by = .(metR::season(time))]
+precip[, clase := sign(precip_anomalia)]
+```
+
+```{r}
+perceptron <- perceptron_train(sst_matrix, precip$clase, lambda = 0.01)
+```
+
+
+```{r}
+
+plot_perceptron <- function(perceptron) {
+  sst %>%
+    # .[lon > 180] %>%
+    .[time ==time[1]] %>%
+    .[, perceptron := ..perceptron[-1]] %>%
+    # .[, w_a := Anomaly(W)] %>%
+    ggplot(aes(lon, lat)) +
+    metR::geom_contour_fill(aes(z = perceptron)) +
+    scale_fill_divergent() 
+}
+
+plot_perceptron(perceptron) +
+  annotate("rect", xmin = 299.26, xmax = 312, ymin = -34.6, ymax = -24)
+
+# geom_qmap(color = "black") +
+#   annotate("rect", xmin = 360-170, xmax = 360-120, ymin = -5, ymax = 5,
+#            fill = NA, colour = "black") +
+#   # scale_y_latitude(limits = c(NA, 0)) +
+#   labs(title = "Perceptrón",
+#        subtitle = "El Niño")
+
+```
+
+
+```{r}
+sst %>%
+  # .[lon > 180] %>%
+  # .[time ==time[1]] %>%
+  .[, perceptron := ..perceptron[-1], by = time] %>%
+  .[, sum(t_anomaly*perceptron), by = .(time)] %>% 
+  .[precip, on = "time"] %>% 
+  ggplot(aes(V1, precip_anomalia)) +
+  geom_hline(yintercept = 0, size = 0.3, colour = "gray50" ) +
+  geom_vline(xintercept = 0, size = 0.3, colour = "gray50" ) +
+  geom_point() +
+  scale_x_continuous("Wt*X") +
+  scale_y_continuous("Precipitación en\nsudeste de sudamérica")
+```
+
