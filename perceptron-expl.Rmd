@@ -176,21 +176,22 @@ grilla %>%
 
 ## Un ejemplo real con el perceptrón
 
-```{r}
-source("perceptron.R")
-source("preparar-datos.R")
+```{r setup-perceptron}
+source("perceptron.R")        # perceptron_train para entrenar un perceptrón
+source("preparar-datos.R")    # funciones para descargar y cargar los datos
 ```
 
 
-```{r}
+```{r precip}
 precip <- datos_precip() %>% 
   .[, .(precip = mean(precip)), by = .(time = seasonally(time))] %>% 
   .[, precip_anomalia := precip - mean(precip), by = .(season(time))]
 precip[, clase := sign(precip_anomalia)]
 ```
 
+Datos de precipitación trimestral en el Sudeste de Sudamétrica. 
 
-```{r}
+```{r pp-SESA}
 ggplot(precip, aes(time, precip_anomalia)) +
   geom_col(aes(fill = factor(clase))) +
   scale_fill_manual(values = c("-1" = "#f37329", 
@@ -201,7 +202,7 @@ ggplot(precip, aes(time, precip_anomalia)) +
 ```
 
 
-```{r}
+```{r sst}
 sst <- datos_sst() %>%
   na.omit() %>%
   .[, .(t = mean(t)), by = .(lon, lat, time = seasonally(time))] %>% 
@@ -216,14 +217,16 @@ sst_matrix <- sst %>%
   as.matrix()
 ```
 
+Entrena un perceptrón para clasificar trimestres secos vs. húmedos usando los campos de temperatura del mar como predictores. 
 
-```{r}
+```{r perceptron}
 set.seed(42)
 perceptron <- perceptron_train(sst_matrix, precip$clase, lambda = .7, epochs = 10)
 ```
 
+Proyectando los campos de temperatura de la superficie del mar en la dirección del perceptrónn, se obtienen las predicciones.
 
-```{r}
+```{r prediccion}
 sst %>%
   .[, perceptron := ..perceptron, by = time] %>%
   .[, sum(t_anomaly*perceptron), by = .(time)] %>% 
@@ -237,11 +240,11 @@ sst %>%
 ```
 
 
+Y también se puede observar el campo de temperatura de la superficie del mar que representa la dirección del perceptrón. 
+
 ```{r}
 sst %>%
   .[time == time[1]] %>%
-  # .[, perceptron := ..perceptron] %>%
-  # .[, w_a := Anomaly(W)] %>%
   ggplot(aes(lon, lat)) +
   geom_contour_fill(aes(z = perceptron)) +
   geom_polygon(data = map_data("world2"), aes(long, lat, group = group), 
