@@ -1,7 +1,6 @@
 ---
-title: "Untitled"
-author: "Elio Campitelli"
-date: "02/08/2021"
+title: "Interpretando el Perceptrón"
+author: "Elio Campitelli y Paola Corrales"
 output: html_document
 editor_options: 
   chunk_output_type: console
@@ -9,6 +8,7 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
 library(ggplot2)
 library(magrittr)
 library(data.table)
@@ -17,8 +17,11 @@ library(patchwork)
 library(metR)
 ```
 
+## Clasificación
 
-```{r}
+Generamos 100 datos aleatorios que son linealmente separables por la recta -xy.
+
+```{r genera-datos}
 N <- 100
 data <- data.table(x = rnorm(N), 
                    y = rnorm(N)) %>% 
@@ -34,7 +37,7 @@ data %>%
 ```
 
 
-```{r}
+```{r grafico-recta}
 data %>% 
   ggplot(aes(x, y)) +
   geom_point(aes(color = clase)) +
@@ -42,7 +45,9 @@ data %>%
   coord_equal()
 ```
 
-```{r}
+La recta que separa las clases puede definirse por una dirección (la flecha en el gráfico).
+
+```{r grafico-flecha}
 data %>% 
   ggplot(aes(x, y)) +
   geom_point(aes(color = clase)) +
@@ -51,7 +56,11 @@ data %>%
   coord_equal()
 ```
 
-```{r}
+Al estar en dos dimensiones, el vector que define la recta tiene dos componentes x e y.
+
+Este gráfico dinámico permite explorar distintos vectores y el valor asociado a sus componentes.
+
+```{r vector-2d}
 manipulate(plot(x, 1), x = slider(1, 2))  # Porque rstudio 1.4 tiene un bug
 
 plotear <- function(x, y) {
@@ -79,7 +88,9 @@ manipulate(plotear(x, y),
 )
 ```
 
-```{r}
+En 3 dimensiones la visualización es ligeramente más compleja pero aún así se pueden ver las componentes x, y y z usando el color y grosor de la flecha.
+
+```{r vector-3d}
 manipulate(plot(x, 1), x = slider(1, 2))  # Porque rstudio 1.4 tiene un bug
 plotear3d <- function(x, y, z) {
   
@@ -112,8 +123,9 @@ manipulate(plotear3d(x, y, z),
 )
 ```
 
+Para más de 3 dimensiones, no queda otra que utilizar gráfico de barras para visualizar las distintas componentes.
 
-```{r}
+```{r 20-dimensiones}
 n_dims <- 20
 
 data.table(dimension = paste0("dim ", seq_len(n_dims)),
@@ -124,27 +136,13 @@ data.table(dimension = paste0("dim ", seq_len(n_dims)),
   scale_fill_divergent(limits = c(-1, 1)) 
 ```
 
+Pero cuando las dimensiones tienen un orden particular podemos visualizarlas de esta manera.
 
-
-```{r}
+```{r grilla-4d}
 grilla <- CJ(x = 1:2, 
              y = 1:2) %>% 
   .[, valor := runif(.N, -1, 1)]
-```
 
-
-```{r}
-grilla %>% 
-  ggplot(aes(x, y)) +
-  geom_raster(aes(fill = valor)) +
-  scale_y_continuous(breaks = 1:2) +
-  scale_x_continuous(breaks = 1:2) +
-  scale_fill_divergent() +
-  coord_equal()
-```
-
-
-```{r}
 grilla %>% 
   .[, dimension := paste0("dimensión ", seq_len(.N))] %>% 
   ggplot(aes(x, y)) +
@@ -156,9 +154,10 @@ grilla %>%
   coord_equal()
 ```
 
+Ambos gráficos muestran las dimensiones de un vector que define un plano de clasificación. El de la derecha tiene en cuenta el orden intrinsico de esas dimensiones mientras que en el gráfico de la derecha eso se pierde.
 
+```{r comparacion}
 
-```{r}
 grilla %>% 
   ggplot(aes(x, y)) +
   geom_raster(aes(fill = valor)) +
@@ -175,6 +174,7 @@ grilla %>%
   scale_fill_divergent(limits = c(-1, 1)) 
 ```
 
+## Un ejemplo real con el perceptrón
 
 ```{r}
 source("perceptron.R")
