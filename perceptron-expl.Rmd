@@ -10,34 +10,24 @@ editor_options:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(ggplot2)
+library(magrittr)
 library(data.table)
-d <- `[`
 library(manipulate)
 library(patchwork)
-
-
-scale_fill_divergent <- function (..., low = scales::muted("blue"), 
-                                  mid = "white", 
-                                  high = scales::muted("red"), 
-                                  midpoint = 0, space = "Lab",
-                                  na.value = "grey50", guide = "colourbar") {
-  ggplot2::scale_fill_gradient2(..., low = low, high = high, 
-                                mid = mid, midpoint = midpoint, space = space, na.value = na.value, 
-                                guide = guide)
-}
+library(metR)
 ```
 
 
 ```{r}
 N <- 100
 data <- data.table(x = rnorm(N), 
-                   y = rnorm(N)) |> 
-  d(, clase := x+y > 0)
+                   y = rnorm(N)) %>% 
+  .[, clase := x+y > 0]
 
 arrow <- grid::arrow(type = "closed", 
                      angle = 13, length = grid::unit(1, "lines"))
 
-data |> 
+data %>% 
   ggplot(aes(x, y)) +
   geom_point(aes(color = clase)) +
   coord_equal()
@@ -45,7 +35,7 @@ data |>
 
 
 ```{r}
-data |> 
+data %>% 
   ggplot(aes(x, y)) +
   geom_point(aes(color = clase)) +
   geom_abline(intercept = 0, slope = -1) +
@@ -53,7 +43,7 @@ data |>
 ```
 
 ```{r}
-data |> 
+data %>% 
   ggplot(aes(x, y)) +
   geom_point(aes(color = clase)) +
   geom_abline(intercept = 0, slope = -1) +
@@ -66,14 +56,14 @@ manipulate(plot(x, 1), x = slider(1, 2))  # Porque rstudio 1.4 tiene un bug
 
 plotear <- function(x, y) {
   data.table(dimension = c("x", "y"),
-             valor = c(x, y)) |> 
+             valor = c(x, y)) %>% 
     ggplot(aes(dimension, valor)) +
     geom_col(aes(fill = valor), color = "black") +
     scale_y_continuous(limits = c(-1, 1)) +
     scale_fill_divergent(limits = c(-1, 1)) +
     
     data.table(x = x, 
-               y = y) |> 
+               y = y) %>% 
     ggplot(aes(0, 0)) +
     geom_segment(aes(xend = x, yend = y), arrow = arrow) +
     scale_y_continuous(limits = 1.2*c(-1, 1)) +
@@ -94,7 +84,7 @@ manipulate(plot(x, 1), x = slider(1, 2))  # Porque rstudio 1.4 tiene un bug
 plotear3d <- function(x, y, z) {
   
   data.table(dimension = c("x", "y", "z"),
-             valor = c(x, y, z)) |> 
+             valor = c(x, y, z)) %>% 
     ggplot(aes(dimension, valor)) +
     geom_col(aes(fill = valor), color = "black") +
     scale_y_continuous(limits = c(-1, 1)) +
@@ -103,7 +93,7 @@ plotear3d <- function(x, y, z) {
     
     data.table(x = c(0, x), 
                y = c(0, y), 
-               z = c(0, z)) |> 
+               z = c(0, z)) %>% 
     ggplot(aes(x, y)) +
     ggforce::geom_link2(aes(colour = z^2, 
                             size = (z+1)*3)) +
@@ -127,7 +117,7 @@ manipulate(plotear3d(x, y, z),
 n_dims <- 20
 
 data.table(dimension = paste0("dim ", seq_len(n_dims)),
-           valor = runif(n_dims, -1, 1)) |> 
+           valor = runif(n_dims, -1, 1)) %>% 
   ggplot(aes(dimension, valor)) +
   geom_col(aes(fill = valor), color = "black") +
   scale_y_continuous(limits = c(-1, 1)) +
@@ -138,13 +128,13 @@ data.table(dimension = paste0("dim ", seq_len(n_dims)),
 
 ```{r}
 grilla <- CJ(x = 1:2, 
-             y = 1:2) |> 
-  d(, valor := runif(.N, -1, 1)) 
+             y = 1:2) %>% 
+  .[, valor := runif(.N, -1, 1)]
 ```
 
 
 ```{r}
-grilla |> 
+grilla %>% 
   ggplot(aes(x, y)) +
   geom_raster(aes(fill = valor)) +
   scale_y_continuous(breaks = 1:2) +
@@ -155,8 +145,8 @@ grilla |>
 
 
 ```{r}
-grilla |> 
-  d(, dimension := paste0("dimensión ", seq_len(.N))) |> 
+grilla %>% 
+  .[, dimension := paste0("dimensión ", seq_len(.N))] %>% 
   ggplot(aes(x, y)) +
   geom_raster(aes(fill = valor)) +
   scale_y_continuous(breaks = 1:2) +
@@ -169,8 +159,7 @@ grilla |>
 
 
 ```{r}
-
-grilla |> 
+grilla %>% 
   ggplot(aes(x, y)) +
   geom_raster(aes(fill = valor)) +
   scale_y_continuous(breaks = 1:2) +
@@ -179,39 +168,29 @@ grilla |>
   geom_label(aes(label = dimension)) + 
   coord_equal() +
   
-  grilla |> 
+  grilla %>% 
   ggplot(aes(dimension, valor)) +
   geom_col(aes(fill = valor), color = "black") +
   scale_y_continuous(limits = c(-1, 1)) +
   scale_fill_divergent(limits = c(-1, 1)) 
 ```
 
-Siguiente paso: mostrar el mapa final de un perceptrón
-
 
 ```{r}
 source("perceptron.R")
 source("preparar-datos.R")
-
 ```
 
 
 ```{r}
 sst <- datos_sst() %>%
   na.omit() %>%
-  .[, .(t = mean(t)), by = .(lon, lat, time = metR::seasonally(time))] %>% 
+  .[, .(t = mean(t)), by = .(lon, lat, time = seasonally(time))] %>% 
   .[, id := interaction(lon, lat)]  %>%
   .[order(as.numeric(id))]
 
-
-# enso <- sst[lat %between% c(-5, 5) & lon %between% (360 + c(-170, -120))] %>% 
-#   na.omit() %>% 
-#   .[, mean(t), by = .(time)] %>% 
-#   .[, enso34 := scale(V1), by = .(month(time))] %>% 
-#   .[, clase := sign(enso34)]
-
 sst_matrix <- sst %>%
-  .[, t_anomaly := t - mean(t), by = .(lon, lat, metR::season(time))] %>% 
+  .[, t_anomaly := t - mean(t), by = .(lon, lat, season(time))] %>% 
   .[, t_anomaly := t_anomaly/sd(t_anomaly)] %>%
   data.table::dcast(time ~ id, value.var = "t_anomaly") %>%
   .[, -1] %>%
@@ -221,8 +200,8 @@ sst_matrix <- sst %>%
 
 ```{r}
 precip <- datos_precip() %>% 
-  .[, .(precip = mean(precip)), by = .(time = metR::seasonally(time))] %>% 
-  .[, precip_anomalia := precip - mean(precip), by = .(metR::season(time))]
+  .[, .(precip = mean(precip)), by = .(time = seasonally(time))] %>% 
+  .[, precip_anomalia := precip - mean(precip), by = .(season(time))]
 precip[, clase := sign(precip_anomalia)]
 ```
 
@@ -233,34 +212,25 @@ perceptron <- perceptron_train(sst_matrix, precip$clase, lambda = .7, epochs = 1
 
 
 ```{r}
-plot_perceptron <- function(perceptron) {
-  sst %>%
-    # .[lon > 180] %>%
-    .[time == time[1]] %>%
-    .[, perceptron := ..perceptron] %>%
-    # .[, w_a := Anomaly(W)] %>%
-    ggplot(aes(lon, lat)) +
-    metR::geom_contour_fill(aes(z = perceptron)) +
-    scale_fill_divergent() 
-}
-
-plot_perceptron(perceptron) +
-  annotate("rect", xmin = 299.26, xmax = 312, ymin = -34.6, ymax = -24)
-
-# geom_qmap(color = "black") +
-#   annotate("rect", xmin = 360-170, xmax = 360-120, ymin = -5, ymax = 5,
-#            fill = NA, colour = "black") +
-#   # scale_y_latitude(limits = c(NA, 0)) +
-#   labs(title = "Perceptrón",
-#        subtitle = "El Niño")
-
+sst %>%
+  .[time == time[1]] %>%
+  .[, perceptron := ..perceptron] %>%
+  # .[, w_a := Anomaly(W)] %>%
+  ggplot(aes(lon, lat)) +
+  geom_contour_fill(aes(z = perceptron)) +
+  geom_polygon(data = map_data("world2"), aes(long, lat, group = group), 
+               fill = "white", color = "black", size = 0.1) +
+  annotate("rect", xmin = 299.26, xmax = 312, ymin = -34.6, ymax = -24, 
+           colour = "black", fill = NA)  +
+  scale_fill_divergent(guide= "none") +
+  scale_x_longitude() +
+  scale_y_latitude() +
+  coord_quickmap()
 ```
 
 
 ```{r}
 sst %>%
-  # .[lon > 180] %>%
-  # .[time ==time[1]] %>%
   .[, perceptron := ..perceptron, by = time] %>%
   .[, sum(t_anomaly*perceptron), by = .(time)] %>% 
   .[precip, on = "time"] %>% 
@@ -271,4 +241,6 @@ sst %>%
   scale_x_continuous("Wt*X") +
   scale_y_continuous("Precipitación en\nsudeste de sudamérica")
 ```
+
+
 
