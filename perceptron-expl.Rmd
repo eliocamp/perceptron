@@ -183,6 +183,25 @@ source("preparar-datos.R")
 
 
 ```{r}
+precip <- datos_precip() %>% 
+  .[, .(precip = mean(precip)), by = .(time = seasonally(time))] %>% 
+  .[, precip_anomalia := precip - mean(precip), by = .(season(time))]
+precip[, clase := sign(precip_anomalia)]
+```
+
+
+```{r}
+ggplot(precip, aes(time, precip_anomalia)) +
+  geom_col(aes(fill = factor(clase))) +
+  scale_fill_manual(values = c("-1" = "#f37329", 
+                                "1" = "#68b723"), 
+                     guide = "none") +
+  scale_y_continuous("Anomalía trimestral de precipitación") +
+  scale_x_date(NULL)
+```
+
+
+```{r}
 sst <- datos_sst() %>%
   na.omit() %>%
   .[, .(t = mean(t)), by = .(lon, lat, time = seasonally(time))] %>% 
@@ -199,33 +218,8 @@ sst_matrix <- sst %>%
 
 
 ```{r}
-precip <- datos_precip() %>% 
-  .[, .(precip = mean(precip)), by = .(time = seasonally(time))] %>% 
-  .[, precip_anomalia := precip - mean(precip), by = .(season(time))]
-precip[, clase := sign(precip_anomalia)]
-```
-
-```{r}
 set.seed(42)
 perceptron <- perceptron_train(sst_matrix, precip$clase, lambda = .7, epochs = 10)
-```
-
-
-```{r}
-sst %>%
-  .[time == time[1]] %>%
-  .[, perceptron := ..perceptron] %>%
-  # .[, w_a := Anomaly(W)] %>%
-  ggplot(aes(lon, lat)) +
-  geom_contour_fill(aes(z = perceptron)) +
-  geom_polygon(data = map_data("world2"), aes(long, lat, group = group), 
-               fill = "white", color = "black", size = 0.1) +
-  annotate("rect", xmin = 299.26, xmax = 312, ymin = -34.6, ymax = -24, 
-           colour = "black", fill = NA)  +
-  scale_fill_divergent(guide= "none") +
-  scale_x_longitude() +
-  scale_y_latitude() +
-  coord_quickmap()
 ```
 
 
@@ -243,4 +237,20 @@ sst %>%
 ```
 
 
+```{r}
+sst %>%
+  .[time == time[1]] %>%
+  # .[, perceptron := ..perceptron] %>%
+  # .[, w_a := Anomaly(W)] %>%
+  ggplot(aes(lon, lat)) +
+  geom_contour_fill(aes(z = perceptron)) +
+  geom_polygon(data = map_data("world2"), aes(long, lat, group = group), 
+               fill = "white", color = "black", size = 0.1) +
+  annotate("rect", xmin = 299.26, xmax = 312, ymin = -34.6, ymax = -24, 
+           colour = "black", fill = NA)  +
+  scale_fill_divergent(guide= "none") +
+  scale_x_longitude() +
+  scale_y_latitude() +
+  coord_quickmap()
+```
 
