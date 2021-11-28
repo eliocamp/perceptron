@@ -193,14 +193,11 @@ Siguiente paso: mostrar el mapa final de un perceptrón
 source("perceptron.R")
 source("preparar-datos.R")
 
-sst <- sst_datos()
-precip <- precip_datos()
-
 ```
 
 
 ```{r}
-sst <- sst %>%
+sst <- datos_sst() %>%
   na.omit() %>%
   .[, .(t = mean(t)), by = .(lon, lat, time = metR::seasonally(time))] %>% 
   .[, id := interaction(lon, lat)]  %>%
@@ -223,24 +220,24 @@ sst_matrix <- sst %>%
 
 
 ```{r}
-precip <- precip %>% 
+precip <- datos_precip() %>% 
   .[, .(precip = mean(precip)), by = .(time = metR::seasonally(time))] %>% 
   .[, precip_anomalia := precip - mean(precip), by = .(metR::season(time))]
 precip[, clase := sign(precip_anomalia)]
 ```
 
 ```{r}
-perceptron <- perceptron_train(sst_matrix, precip$clase, lambda = 0.01)
+set.seed(42)
+perceptron <- perceptron_train(sst_matrix, precip$clase, lambda = .7, epochs = 10)
 ```
 
 
 ```{r}
-
 plot_perceptron <- function(perceptron) {
   sst %>%
     # .[lon > 180] %>%
-    .[time ==time[1]] %>%
-    .[, perceptron := ..perceptron[-1]] %>%
+    .[time == time[1]] %>%
+    .[, perceptron := ..perceptron] %>%
     # .[, w_a := Anomaly(W)] %>%
     ggplot(aes(lon, lat)) +
     metR::geom_contour_fill(aes(z = perceptron)) +
@@ -264,7 +261,7 @@ plot_perceptron(perceptron) +
 sst %>%
   # .[lon > 180] %>%
   # .[time ==time[1]] %>%
-  .[, perceptron := ..perceptron[-1], by = time] %>%
+  .[, perceptron := ..perceptron, by = time] %>%
   .[, sum(t_anomaly*perceptron), by = .(time)] %>% 
   .[precip, on = "time"] %>% 
   ggplot(aes(V1, precip_anomalia)) +
