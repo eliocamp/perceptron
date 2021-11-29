@@ -95,7 +95,7 @@ manipulate(plot(x, 1), x = slider(1, 2))  # Porque rstudio 1.4 tiene un bug
 plotear3d <- function(x, y, z) {
   
   data.table(dimension = c("x", "y", "z"),
-             valor = c(x, y, z)) %>% 
+             valor = c(x, y, z)) %>% a
     ggplot(aes(dimension, valor)) +
     geom_col(aes(fill = valor), color = "black") +
     scale_y_continuous(limits = c(-1, 1)) +
@@ -206,13 +206,33 @@ ggplot(precip, aes(time, precip_anomalia)) +
 sst <- datos_sst() %>%
   na.omit() %>%
   .[, .(t = mean(t)), by = .(lon, lat, time = seasonally(time))] %>% 
+  .[, t_anomaly := t - mean(t), by = .(lon, lat, season(time))] %>% 
+  .[, t_anomaly_sd := t_anomaly/sd(t_anomaly)] %>%
   .[, id := interaction(lon, lat)]  %>%
   .[order(as.numeric(id))]
 
+```
+
+```{r campo-sst}
+sst %>% 
+  .[time == time[1]] %>% 
+   ggplot(aes(lon, lat)) +
+  geom_contour_fill(aes(z = t_anomaly)) +
+  geom_polygon(data = map_data("world2"),
+               aes(long, lat, group = group), 
+               fill = "white", color = "black", size = 0.1) +
+  annotate("rect", xmin = 299.26, xmax = 312, ymin = -34.6, 
+           ymax = -24, 
+           colour = "black", fill = NA)  +
+  scale_fill_divergent(guide= "none") +
+  scale_x_longitude() +
+  scale_y_latitude() +
+  coord_quickmap()
+```
+
+```{r sst_matrix}
 sst_matrix <- sst %>%
-  .[, t_anomaly := t - mean(t), by = .(lon, lat, season(time))] %>% 
-  .[, t_anomaly := t_anomaly/sd(t_anomaly)] %>%
-  data.table::dcast(time ~ id, value.var = "t_anomaly") %>%
+  data.table::dcast(time ~ id, value.var = "t_anomaly_sd") %>%
   .[, -1] %>%
   as.matrix()
 ```
