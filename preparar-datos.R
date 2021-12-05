@@ -60,5 +60,13 @@ datos_precip <- function() {
   readRDS(file.path("datos", "cmap.mon.Rds"))
 }
 
+pp <- metR::ReadNetCDF(cmap_file)
+
+saveRDS(pp, file.path("datos", "pp.mon.Rds"))
+
+datos_pp_field <- function() {
+  readRDS(file.path("datos", "pp.mon.Rds"))
+}
+
 
 
