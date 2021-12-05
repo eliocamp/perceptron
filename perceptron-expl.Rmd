@@ -15,7 +15,12 @@ library(data.table)
 library(manipulate)
 library(patchwork)
 library(metR)
+theme_set(theme_minimal())
 ```
+
+## Perceptrón
+
+
 
 ## Clasificación
 
@@ -23,8 +28,9 @@ Generamos 100 datos aleatorios que son linealmente separables por la recta -xy.
 
 ```{r genera-datos}
 N <- 100
-data <- data.table(x = rnorm(N), 
-                   y = rnorm(N)) %>% 
+set.seed(42)
+data <- data.table(x = rnorm(N, c(-2, 2)), 
+                   y = rnorm(N, c(-2, 2))) %>% 
   .[, clase := x+y > 0]
 
 arrow <- grid::arrow(type = "closed", 
@@ -95,7 +101,7 @@ manipulate(plot(x, 1), x = slider(1, 2))  # Porque rstudio 1.4 tiene un bug
 plotear3d <- function(x, y, z) {
   
   data.table(dimension = c("x", "y", "z"),
-             valor = c(x, y, z)) %>% a
+             valor = c(x, y, z)) %>% 
     ggplot(aes(dimension, valor)) +
     geom_col(aes(fill = valor), color = "black") +
     scale_y_continuous(limits = c(-1, 1)) +
@@ -143,6 +149,17 @@ grilla <- CJ(x = 1:2,
              y = 1:2) %>% 
   .[, valor := runif(.N, -1, 1)]
 
+grilla %>% 
+  .[, dimension := paste0("dimensión ", seq_len(.N))] %>% 
+  ggplot(aes(x, y)) +
+  geom_raster(aes(fill = valor)) +
+  scale_y_continuous(breaks = 1:2) +
+  scale_x_continuous(breaks = 1:2) +
+  scale_fill_divergent() +
+  coord_equal()
+```
+
+```{r}
 grilla %>% 
   .[, dimension := paste0("dimensión ", seq_len(.N))] %>% 
   ggplot(aes(x, y)) +
@@ -201,6 +218,16 @@ ggplot(precip, aes(time, precip_anomalia)) +
   scale_x_date(NULL)
 ```
 
+```{r}
+ggplot(precip, aes(time, clase)) +
+  geom_col(aes(fill = factor(clase))) +
+  scale_fill_manual(values = c("-1" = "#f37329", 
+                                "1" = "#68b723"), 
+                     guide = "none") +
+  scale_y_continuous("Anomalía trimestral de precipitación") +
+  scale_x_date(NULL)
+```
+
 
 ```{r sst}
 sst <- datos_sst() %>%
@@ -244,12 +271,14 @@ set.seed(42)
 perceptron <- perceptron_train(sst_matrix, precip$clase, lambda = .7, epochs = 10)
 ```
 
+
+
 Proyectando los campos de temperatura de la superficie del mar en la dirección del perceptrónn, se obtienen las predicciones.
 
 ```{r prediccion}
 sst %>%
-  .[, perceptron := ..perceptron, by = time] %>%
-  .[, sum(t_anomaly*perceptron), by = .(time)] %>% 
+  .[, perceptron := ..perceptron[-1], by = time] %>%
+  .[, sum(c(t_anomaly*perceptron, ..perceptron[1])), by = .(time)] %>% 
   .[precip, on = "time"] %>% 
   ggplot(aes(V1, precip_anomalia)) +
   geom_hline(yintercept = 0, size = 0.3, colour = "gray50" ) +
@@ -261,6 +290,12 @@ sst %>%
 
 
 Y también se puede observar el campo de temperatura de la superficie del mar que representa la dirección del perceptrón. 
+
+
+```{r}
+perceptron[1:10]
+```
+
 
 ```{r}
 sst %>%
