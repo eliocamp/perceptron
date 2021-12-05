@@ -1,5 +1,5 @@
 perceptron_train <- function(X, y, epochs = 100, lambda = 10) {
-  X <- cbind(X)
+  X <- cbind(1, X)
   W <- rnorm(ncol(X))
   Ws <- vector("list", epochs)
   accuracy <- rep(NA,  epochs)
