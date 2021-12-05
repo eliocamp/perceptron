@@ -218,6 +218,16 @@ ggplot(precip, aes(time, precip_anomalia)) +
   scale_x_date(NULL)
 ```
 
+```{r}
+ggplot(precip, aes(time, clase)) +
+  geom_col(aes(fill = factor(clase))) +
+  scale_fill_manual(values = c("-1" = "#f37329", 
+                                "1" = "#68b723"), 
+                     guide = "none") +
+  scale_y_continuous("Anomalía trimestral de precipitación") +
+  scale_x_date(NULL)
+```
+
 
 ```{r sst}
 sst <- datos_sst() %>%
@@ -262,16 +272,13 @@ perceptron <- perceptron_train(sst_matrix, precip$clase, lambda = .7, epochs = 1
 ```
 
 
-```{r}
-perceptron[1:10]
-```
 
 Proyectando los campos de temperatura de la superficie del mar en la dirección del perceptrónn, se obtienen las predicciones.
 
 ```{r prediccion}
 sst %>%
   .[, perceptron := ..perceptron[-1], by = time] %>%
-  .[, sum(t_anomaly*perceptron), by = .(time)] %>% 
+  .[, sum(c(t_anomaly*perceptron, ..perceptron[1])), by = .(time)] %>% 
   .[precip, on = "time"] %>% 
   ggplot(aes(V1, precip_anomalia)) +
   geom_hline(yintercept = 0, size = 0.3, colour = "gray50" ) +
@@ -283,6 +290,12 @@ sst %>%
 
 
 Y también se puede observar el campo de temperatura de la superficie del mar que representa la dirección del perceptrón. 
+
+
+```{r}
+perceptron[1:10]
+```
+
 
 ```{r}
 sst %>%
